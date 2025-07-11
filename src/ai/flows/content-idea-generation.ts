@@ -1,4 +1,3 @@
-// content-idea-generation.ts
 'use server';
 
 /**
@@ -53,6 +52,9 @@ const generateContentIdeasFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await generateContentIdeasPrompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('The AI model returned an empty response.');
+    }
+    return output;
   }
 );
