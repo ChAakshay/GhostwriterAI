@@ -21,6 +21,8 @@ function getTitleFromPathname(pathname: string): string {
       return 'My Drafts';
     case 'personas':
       return 'Audience Personas';
+    case 'calendar':
+        return 'Content Calendar';
     default:
       // Handle dynamic routes like /repurpose/[id]
       if (segments.includes('repurpose')) {

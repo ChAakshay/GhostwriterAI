@@ -8,15 +8,16 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, PenSquare, AudioLines, Lightbulb, FileText, Users } from 'lucide-react';
+import { LayoutDashboard, PenSquare, AudioLines, Lightbulb, FileText, Users, CalendarDays } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
+  { href: '/dashboard/ideas', label: 'Content Ideas', icon: Lightbulb },
   { href: '/dashboard/drafting', label: 'Drafting', icon: PenSquare },
+  { href: '/dashboard/drafts', label: 'My Drafts', icon: FileText },
   { href: '/dashboard/voice', label: 'Voice Profile', icon: AudioLines },
   { href: '/dashboard/personas', label: 'Personas', icon: Users },
-  { href: '/dashboard/ideas', label: 'Content Ideas', icon: Lightbulb },
-  { href: '/dashboard/drafts', label: 'My Drafts', icon: FileText },
 ];
 
 export function MainNav() {

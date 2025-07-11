@@ -8,6 +8,7 @@ export interface Draft {
   format: string;
   content: string;
   createdAt: string;
+  scheduledDate?: string | null;
 }
 
 export interface Persona {
@@ -22,6 +23,8 @@ interface GhostwriterState {
   drafts: Draft[];
   addDraft: (draft: Omit<Draft, 'id' | 'createdAt'>) => void;
   deleteDraft: (id: string) => void;
+  scheduleDraft: (id: string, date: Date) => void;
+  unscheduleDraft: (id: string) => void;
   personas: Persona[];
   addPersona: (persona: Omit<Persona, 'id'>) => void;
   deletePersona: (id: string) => void;
@@ -66,33 +69,39 @@ export const GhostwriterStateProvider = ({ children }: { children: ReactNode }) 
     }
   };
 
+  const updateAndSaveDrafts = (newDrafts: Draft[]) => {
+     const sortedDrafts = newDrafts.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setDrafts(sortedDrafts);
+    try {
+      localStorage.setItem('ghostwriter_drafts', JSON.stringify(sortedDrafts));
+    } catch (error) {
+      console.error('Failed to save drafts to localStorage', error);
+    }
+  };
+
   const addDraft = (draft: Omit<Draft, 'id' | 'createdAt'>) => {
     const newDraft: Draft = {
       ...draft,
       id: new Date().toISOString() + Math.random(),
       createdAt: new Date().toISOString(),
+      scheduledDate: null,
     };
-    setDrafts(prevDrafts => {
-      const updatedDrafts = [newDraft, ...prevDrafts];
-      try {
-        localStorage.setItem('ghostwriter_drafts', JSON.stringify(updatedDrafts));
-      } catch (error) {
-        console.error('Failed to save drafts to localStorage', error);
-      }
-      return updatedDrafts;
-    });
+    updateAndSaveDrafts([newDraft, ...drafts]);
   };
 
   const deleteDraft = (id: string) => {
-    setDrafts(prevDrafts => {
-      const updatedDrafts = prevDrafts.filter(draft => draft.id !== id);
-      try {
-        localStorage.setItem('ghostwriter_drafts', JSON.stringify(updatedDrafts));
-      } catch (error) {
-        console.error('Failed to save drafts to localStorage', error);
-      }
-      return updatedDrafts;
-    });
+    const updatedDrafts = drafts.filter(draft => draft.id !== id);
+    updateAndSaveDrafts(updatedDrafts);
+  };
+  
+  const scheduleDraft = (id: string, date: Date) => {
+    const updatedDrafts = drafts.map(d => d.id === id ? { ...d, scheduledDate: date.toISOString() } : d);
+    updateAndSaveDrafts(updatedDrafts);
+  };
+
+  const unscheduleDraft = (id: string) => {
+    const updatedDrafts = drafts.map(d => d.id === id ? { ...d, scheduledDate: null } : d);
+    updateAndSaveDrafts(updatedDrafts);
   };
   
   const addPersona = (persona: Omit<Persona, 'id'>) => {
@@ -130,6 +139,8 @@ export const GhostwriterStateProvider = ({ children }: { children: ReactNode }) 
     drafts,
     addDraft,
     deleteDraft,
+    scheduleDraft,
+    unscheduleDraft,
     personas,
     addPersona,
     deletePersona,
