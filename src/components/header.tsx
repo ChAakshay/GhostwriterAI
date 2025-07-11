@@ -19,7 +19,13 @@ function getTitleFromPathname(pathname: string): string {
       return 'Content Ideas';
     case 'drafts':
       return 'My Drafts';
+    case 'personas':
+      return 'Audience Personas';
     default:
+      // Handle dynamic routes like /repurpose/[id]
+      if (segments.includes('repurpose')) {
+        return 'Repurpose Content';
+      }
       return 'Dashboard';
   }
 }

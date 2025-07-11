@@ -5,12 +5,13 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { contentRepurposing } from '@/ai/flows/content-repurposing';
-import { useGhostwriterState, type Draft } from '@/hooks/use-ghostwriter-state';
+import { personaFeedback, PersonaFeedbackOutput } from '@/ai/flows/persona-feedback';
+import { useGhostwriterState, type Draft, type Persona } from '@/hooks/use-ghostwriter-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Send, Loader2, Save } from 'lucide-react';
+import { Trash2, Send, Loader2, Save, MessageSquareQuote, WandSparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -19,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -39,34 +39,53 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
-const formSchema = z.object({
+const repurposeFormSchema = z.object({
   targetFormat: z.string({ required_error: "Please select a target format." }),
 });
+type RepurposeFormValues = z.infer<typeof repurposeFormSchema>;
 
-type FormValues = z.infer<typeof formSchema>;
-
+const feedbackFormSchema = z.object({
+  personaId: z.string({ required_error: "Please select a persona." }),
+});
+type FeedbackFormValues = z.infer<typeof feedbackFormSchema>;
 
 export default function DraftsPage() {
-  const { drafts, deleteDraft, isInitialized, addDraft, voiceProfile } = useGhostwriterState();
+  const { drafts, deleteDraft, isInitialized, addDraft, voiceProfile, personas } = useGhostwriterState();
   const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null);
   const [isRepurposeDialogOpen, setIsRepurposeDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [repurposedContent, setRepurposedContent] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<PersonaFeedbackOutput | null>(null);
   const { toast } = useToast();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const repurposeForm = useForm<RepurposeFormValues>({
+    resolver: zodResolver(repurposeFormSchema),
     defaultValues: { targetFormat: '' },
   });
 
+  const feedbackForm = useForm<FeedbackFormValues>({
+    resolver: zodResolver(feedbackFormSchema),
+    defaultValues: { personaId: '' },
+  });
+  
   const handleRepurposeClick = (draft: Draft, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedDraft(draft);
     setRepurposedContent(null);
-    form.reset();
+    repurposeForm.reset();
     setIsRepurposeDialogOpen(true);
+  }
+
+  const handleFeedbackClick = (draft: Draft, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedDraft(draft);
+    setFeedback(null);
+    feedbackForm.reset();
+    setIsFeedbackDialogOpen(true);
   }
 
   const handleViewClick = (draft: Draft) => {
@@ -74,16 +93,11 @@ export default function DraftsPage() {
     setIsViewDialogOpen(true);
   }
 
-  const onSubmit: SubmitHandler<FormValues> = async (data) => {
+  const onRepurposeSubmit: SubmitHandler<RepurposeFormValues> = async (data) => {
     if (!voiceProfile || !selectedDraft) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Your voice profile or the original draft is missing.",
-      });
+      toast({ variant: "destructive", title: "Missing Information", description: "Your voice profile or the original draft is missing." });
       return;
     }
-
     setIsLoading(true);
     setRepurposedContent(null);
     try {
@@ -95,27 +109,42 @@ export default function DraftsPage() {
       setRepurposedContent(result.repurposedContent);
     } catch (error) {
       console.error("Error repurposing content:", error);
-      toast({
-        variant: "destructive",
-        title: "Repurposing Failed",
-        description: "There was an error generating the new version. Please try again.",
-      });
+      toast({ variant: "destructive", title: "Repurposing Failed", description: "There was an error generating the new version. Please try again." });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSave = () => {
+  const onFeedbackSubmit: SubmitHandler<FeedbackFormValues> = async (data) => {
+    const selectedPersona = personas.find(p => p.id === data.personaId);
+    if (!selectedPersona || !selectedDraft) {
+      toast({ variant: "destructive", title: "Missing Information", description: "A valid persona and draft must be selected." });
+      return;
+    }
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const result = await personaFeedback({
+        personaDescription: selectedPersona.description,
+        draftContent: selectedDraft.content,
+      });
+      setFeedback(result);
+    } catch (error) {
+      console.error("Error getting feedback:", error);
+      toast({ variant: "destructive", title: "Feedback Failed", description: "There was an error generating feedback. Please try again." });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const handleSaveRepurposed = () => {
     if (repurposedContent && selectedDraft) {
       addDraft({
         content: repurposedContent,
         topic: `Repurposed: ${selectedDraft.topic}`,
-        format: form.getValues("targetFormat"),
+        format: repurposeForm.getValues("targetFormat"),
       });
-      toast({
-        title: "Draft Saved!",
-        description: "You can view your new draft in the list."
-      });
+      toast({ title: "Draft Saved!", description: "You can view your new draft in the list." });
       setIsRepurposeDialogOpen(false);
     }
   };
@@ -166,7 +195,7 @@ export default function DraftsPage() {
         <CardHeader>
           <CardTitle className="font-headline">My Drafts</CardTitle>
           <CardDescription>
-            Here are all your saved drafts. Click a row to view, or repurpose them for different platforms.
+            Here are all your saved drafts. Click a row to view, or use the actions to get feedback and repurpose them.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -191,6 +220,10 @@ export default function DraftsPage() {
                       <TableCell>{format(new Date(draft.createdAt), 'PPp')}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="outline" size="sm" onClick={(e) => handleFeedbackClick(draft, e)}>
+                            <MessageSquareQuote className="h-3 w-3 mr-2" />
+                            Get Feedback
+                          </Button>
                           <Button variant="outline" size="sm" onClick={(e) => handleRepurposeClick(draft, e)}>
                             <Send className="h-3 w-3 mr-2" />
                             Repurpose
@@ -263,18 +296,16 @@ export default function DraftsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid lg:grid-cols-2 gap-6 overflow-hidden py-4">
-              {/* Original */}
               <div className="space-y-2 flex flex-col">
                 <Label>Original Draft: {selectedDraft.topic}</Label>
                 <ScrollArea className="border rounded-md p-3 bg-muted/50 flex-1">
                   <p className="text-sm whitespace-pre-wrap">{selectedDraft.content}</p>
                 </ScrollArea>
               </div>
-              {/* Repurposed */}
               <div className="space-y-2 flex flex-col">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex flex-col flex-1">
-                    <FormField control={form.control} name="targetFormat" render={({ field }) => (
+                <Form {...repurposeForm}>
+                  <form onSubmit={repurposeForm.handleSubmit(onRepurposeSubmit)} className="space-y-4 flex flex-col flex-1">
+                    <FormField control={repurposeForm.control} name="targetFormat" render={({ field }) => (
                       <FormItem>
                         <FormLabel>New Format</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
@@ -308,12 +339,11 @@ export default function DraftsPage() {
                       />
                     </div>
                      <div className="flex items-center justify-between">
-                       <Button type="submit" disabled={isLoading || !form.formState.isValid} className="font-headline">
+                       <Button type="submit" disabled={isLoading || !repurposeForm.formState.isValid} className="font-headline">
                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Repurposing...</> : 'Repurpose'}
                        </Button>
-
                        {repurposedContent && (
-                          <Button onClick={handleSave} className="font-headline" variant="default">
+                          <Button onClick={handleSaveRepurposed} className="font-headline" variant="default">
                             <Save className="mr-2" /> Save as New Draft
                           </Button>
                        )}
@@ -321,6 +351,107 @@ export default function DraftsPage() {
                   </form>
                 </Form>
               </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+      
+      {/* Feedback Dialog */}
+      <Dialog open={isFeedbackDialogOpen} onOpenChange={setIsFeedbackDialogOpen}>
+        {selectedDraft && (
+          <DialogContent className="sm:max-w-4xl">
+             <DialogHeader>
+              <DialogTitle className="font-headline">Get Persona Feedback</DialogTitle>
+              <DialogDescription>
+                Analyze how your draft resonates with a specific target audience.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid lg:grid-cols-2 gap-6 py-4">
+                {/* Left: Form & Draft */}
+                <div className="space-y-4">
+                     <Form {...feedbackForm}>
+                        <form onSubmit={feedbackForm.handleSubmit(onFeedbackSubmit)} className="space-y-4">
+                             <FormField control={feedbackForm.control} name="personaId" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Select Audience Persona</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Choose a persona to get feedback from..." />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {personas.length > 0 ? personas.map(p => (
+                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                            )) : <SelectItem value="none" disabled>No personas defined.</SelectItem>}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                             )} />
+                             <Button type="submit" disabled={isLoading || !feedbackForm.formState.isValid || personas.length === 0} className="font-headline">
+                                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : <><WandSparkles className="mr-2 h-4 w-4" /> Get Feedback</>}
+                            </Button>
+                        </form>
+                     </Form>
+                     <Separator />
+                     <div className="space-y-2">
+                         <Label>Original Draft</Label>
+                         <ScrollArea className="border rounded-md p-3 bg-muted/50 h-[40vh]">
+                            <p className="text-sm whitespace-pre-wrap">{selectedDraft.content}</p>
+                        </ScrollArea>
+                     </div>
+                </div>
+                {/* Right: Feedback Result */}
+                <div className="relative">
+                    {isLoading && (
+                        <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-md z-10">
+                            <div className="text-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                                <p className="font-semibold">Analyzing draft...</p>
+                                <p className="text-sm text-muted-foreground">The persona is reading your content.</p>
+                            </div>
+                        </div>
+                    )}
+                    {feedback ? (
+                       <ScrollArea className="h-[65vh] pr-4">
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-headline text-lg">Overall Impression</h4>
+                                    <p className="text-sm text-muted-foreground">{feedback.overallImpression}</p>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="font-headline text-lg">Clarity Feedback</h4>
+                                    <p className="text-sm text-muted-foreground">{feedback.clarityFeedback}</p>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="font-headline text-lg">Engagement Feedback</h4>
+                                    <p className="text-sm text-muted-foreground">{feedback.engagementFeedback}</p>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="font-headline text-lg">Potential Questions</h4>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                                        {feedback.questions.map((q, i) => <li key={i}>{q}</li>)}
+                                    </ul>
+                                </div>
+                                 <Separator />
+                                <div>
+                                    <h4 className="font-headline text-lg">Improvement Suggestions</h4>
+                                     <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                                        {feedback.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                            </div>
+                       </ScrollArea>
+                    ) : (
+                        <div className="h-full border-2 border-dashed rounded-lg flex items-center justify-center text-center text-muted-foreground">
+                            <p>Select a persona and click "Get Feedback"<br/>to see the analysis here.</p>
+                        </div>
+                    )}
+                </div>
             </div>
           </DialogContent>
         )}
