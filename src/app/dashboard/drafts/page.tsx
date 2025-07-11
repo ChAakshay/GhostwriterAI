@@ -6,12 +6,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { contentRepurposing } from '@/ai/flows/content-repurposing';
 import { personaFeedback, type PersonaFeedbackOutput } from '@/ai/flows/persona-feedback';
+import { contentAnalysis, type ContentAnalysisOutput } from '@/ai/flows/content-analysis';
 import { useGhostwriterState, type Draft, type Persona } from '@/hooks/use-ghostwriter-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Send, Loader2, Save, MessageSquareQuote, WandSparkles } from 'lucide-react';
+import { Trash2, Send, Loader2, Save, MessageSquareQuote, WandSparkles, BarChartHorizontal } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -19,7 +20,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -57,9 +57,11 @@ export default function DraftsPage() {
   const [isRepurposeDialogOpen, setIsRepurposeDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
+  const [isAnalysisDialogOpen, setIsAnalysisDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [repurposedContent, setRepurposedContent] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<PersonaFeedbackOutput | null>(null);
+  const [analysis, setAnalysis] = useState<ContentAnalysisOutput | null>(null);
   const { toast } = useToast();
 
   const repurposeForm = useForm<RepurposeFormValues>({
@@ -86,6 +88,24 @@ export default function DraftsPage() {
     setFeedback(null);
     feedbackForm.reset();
     setIsFeedbackDialogOpen(true);
+  }
+  
+  const handleAnalysisClick = async (draft: Draft, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedDraft(draft);
+    setAnalysis(null);
+    setIsAnalysisDialogOpen(true);
+    setIsLoading(true);
+    try {
+      const result = await contentAnalysis({ draftContent: draft.content });
+      setAnalysis(result);
+    } catch (error) {
+      console.error("Error analyzing content:", error);
+      toast({ variant: "destructive", title: "Analysis Failed", description: "There was an error analyzing the draft. Please try again." });
+      setIsAnalysisDialogOpen(false);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   const handleViewClick = (draft: Draft) => {
@@ -220,7 +240,11 @@ export default function DraftsPage() {
                       <TableCell>{format(new Date(draft.createdAt), 'PPp')}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                           <Button variant="outline" size="sm" onClick={(e) => handleFeedbackClick(draft, e)}>
+                           <Button variant="outline" size="sm" onClick={(e) => handleAnalysisClick(draft, e)}>
+                            <BarChartHorizontal className="h-3 w-3 mr-2" />
+                            Analyze
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={(e) => handleFeedbackClick(draft, e)}>
                             <MessageSquareQuote className="h-3 w-3 mr-2" />
                             Get Feedback
                           </Button>
@@ -450,6 +474,83 @@ export default function DraftsPage() {
                         <div className="h-full border-2 border-dashed rounded-lg flex items-center justify-center text-center text-muted-foreground">
                             <p>Select a persona and click "Get Feedback"<br/>to see the analysis here.</p>
                         </div>
+                    )}
+                </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Analysis Dialog */}
+      <Dialog open={isAnalysisDialogOpen} onOpenChange={setIsAnalysisDialogOpen}>
+        {selectedDraft && (
+          <DialogContent className="sm:max-w-4xl">
+             <DialogHeader>
+              <DialogTitle className="font-headline">Content Analysis</DialogTitle>
+              <DialogDescription>
+                Here is a breakdown of your draft's tone, readability, and suggestions for improvement.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid lg:grid-cols-2 gap-6 py-4">
+                {/* Left: Draft */}
+                <div className="space-y-2">
+                    <Label>Your Draft</Label>
+                    <ScrollArea className="border rounded-md p-3 bg-muted/50 h-[60vh]">
+                        <p className="text-sm whitespace-pre-wrap">{selectedDraft.content}</p>
+                    </ScrollArea>
+                </div>
+                {/* Right: Analysis Result */}
+                <div className="relative">
+                    {isLoading && (
+                        <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-md z-10">
+                            <div className="text-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                                <p className="font-semibold">Analyzing content...</p>
+                                <p className="text-sm text-muted-foreground">This may take a moment.</p>
+                            </div>
+                        </div>
+                    )}
+                    {analysis ? (
+                       <ScrollArea className="h-[60vh] pr-4">
+                            <div className="space-y-4">
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-lg font-headline">Tone Analysis</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground">{analysis.toneAnalysis}</p>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-lg font-headline">Readability Level</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground">{analysis.readabilityLevel}</p>
+                                    </CardContent>
+                                </Card>
+
+                                <div>
+                                    <h4 className="font-headline text-lg mb-2">Clarity Suggestions</h4>
+                                    <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+                                        {analysis.claritySuggestions.map((q, i) => <li key={i}>{q}</li>)}
+                                    </ul>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="font-headline text-lg mb-2">Engagement Suggestions</h4>
+                                    <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+                                        {analysis.engagementSuggestions.map((s, i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                            </div>
+                       </ScrollArea>
+                    ) : (
+                       !isLoading && (
+                          <div className="h-full border-2 border-dashed rounded-lg flex items-center justify-center text-center text-muted-foreground">
+                              <p>The analysis will appear here.</p>
+                          </div>
+                        )
                     )}
                 </div>
             </div>
