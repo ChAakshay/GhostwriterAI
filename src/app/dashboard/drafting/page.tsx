@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, PenSquare, Terminal, Download, Save } from 'lucide-react';
 import Link from 'next/link';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
   topic: z.string().min(5, { message: "Please provide a more descriptive topic." }),
@@ -98,7 +99,28 @@ export default function DraftingPage() {
   };
   
   if (!isInitialized) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+     return (
+       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+             <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-40" />
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
   
   if (!voiceProfile) {
@@ -164,9 +186,23 @@ export default function DraftingPage() {
         </CardContent>
       </Card>
       
-      {isLoading && <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
+      {isLoading && 
+         <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-full" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-72 w-full" />
+          </CardContent>
+           <CardFooter className="gap-2">
+             <Skeleton className="h-10 w-28" />
+             <Skeleton className="h-10 w-36" />
+           </CardFooter>
+        </Card>
+      }
 
-      {draft && (
+      {draft && !isLoading && (
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Generated Draft</CardTitle>
@@ -184,3 +220,5 @@ export default function DraftingPage() {
     </div>
   );
 }
+
+    

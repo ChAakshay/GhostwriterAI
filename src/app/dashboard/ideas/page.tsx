@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Lightbulb, Terminal } from 'lucide-react';
 import Link from 'next/link';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
   trendingTopics: z.string().min(3, {
@@ -67,7 +68,24 @@ export default function IdeasPage() {
   };
   
   if (!isInitialized) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return (
+       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-36" />
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!voiceProfile) {
@@ -128,9 +146,23 @@ export default function IdeasPage() {
         </CardContent>
       </Card>
 
-      {isLoading && <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
+      {isLoading && 
+        <div className="space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(6)].map((_, index) => (
+                <Card key={index}>
+                  <CardContent className="p-6">
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-4 w-5/6" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+        </div>
+      }
 
-      {ideas.length > 0 && (
+      {ideas.length > 0 && !isLoading && (
         <div className="space-y-4">
             <h2 className="text-2xl font-bold font-headline">Your Generated Ideas</h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -147,3 +179,5 @@ export default function IdeasPage() {
     </div>
   );
 }
+
+    

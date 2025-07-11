@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Wand2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
   content: z.string().min(200, {
@@ -35,8 +36,6 @@ export default function VoicePage() {
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
-    // Do not clear the old profile until the new one is successfully generated
-    // setVoiceProfile(null); 
     try {
       const result = await personalizedVoiceStyleLearning({ content: data.content });
       setVoiceProfile(result.voiceProfile);
@@ -57,7 +56,36 @@ export default function VoicePage() {
   };
 
   if (!isInitialized) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return (
+       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-full" />
+             <Skeleton className="h-4 w-3/4" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-40 w-full" />
+              </div>
+               <Skeleton className="h-10 w-36" />
+          </CardContent>
+        </Card>
+        <Card>
+           <CardHeader>
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-full" />
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -121,3 +149,5 @@ export default function VoicePage() {
     </div>
   );
 }
+
+    
