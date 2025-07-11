@@ -8,6 +8,8 @@ function getTitleFromPathname(pathname: string): string {
   const segment = pathname.split('/').pop() || 'dashboard';
   switch (segment) {
     case 'dashboard':
+      return 'Dashboard';
+    case 'drafting':
       return 'Content Drafting';
     case 'voice':
       return 'Voice Profile';
