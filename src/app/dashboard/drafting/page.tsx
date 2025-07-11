@@ -5,6 +5,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { contentDrafting } from '@/ai/flows/content-drafting';
+import { visualAssetGeneration } from '@/ai/flows/visual-asset-generation';
 import { useGhostwriterState } from '@/hooks/use-ghostwriter-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -14,8 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, PenSquare, Terminal, Download, Save } from 'lucide-react';
+import { Loader2, PenSquare, Terminal, Download, Save, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
@@ -28,8 +30,10 @@ type FormValues = z.infer<typeof formSchema>;
 export default function DraftingPage() {
   const { voiceProfile, isInitialized, addDraft } = useGhostwriterState();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isDraftLoading, setIsDraftLoading] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -49,8 +53,9 @@ export default function DraftingPage() {
       return;
     }
 
-    setIsLoading(true);
+    setIsDraftLoading(true);
     setDraft(null);
+    setImageUrl(null);
     try {
       const result = await contentDrafting({
         voiceProfile: voiceProfile,
@@ -66,9 +71,28 @@ export default function DraftingPage() {
         description: "There was an error generating your draft. Please try again.",
       });
     } finally {
-      setIsLoading(false);
+      setIsDraftLoading(false);
     }
   };
+  
+  const handleGenerateImage = async () => {
+    if (!draft) return;
+    setIsImageLoading(true);
+    setImageUrl(null);
+    try {
+        const result = await visualAssetGeneration({ content: draft });
+        setImageUrl(result.imageUrl);
+    } catch(error) {
+        console.error("Error generating image:", error);
+        toast({
+            variant: "destructive",
+            title: "Image Generation Failed",
+            description: "There was an error generating the image. Please try again."
+        });
+    } finally {
+        setIsImageLoading(false);
+    }
+  }
 
   const handleSave = () => {
     if (draft && form.getValues("topic") && form.getValues("format")) {
@@ -84,19 +108,29 @@ export default function DraftingPage() {
     }
   };
 
-  const handleDownload = () => {
-    if (draft) {
-      const blob = new Blob([draft], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
+  const handleDownload = (url: string, filename: string) => {
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${form.getValues('topic').replace(/\s+/g, '_')}_draft.txt`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+  };
+  
+  const handleDownloadText = () => {
+    if (draft) {
+      const blob = new Blob([draft], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      handleDownload(url, `${form.getValues('topic').replace(/\s+/g, '_')}_draft.txt`);
       URL.revokeObjectURL(url);
     }
   };
+
+  const handleDownloadImage = () => {
+    if (imageUrl) {
+        handleDownload(imageUrl, `${form.getValues('topic').replace(/\s+/g, '_')}_image.png`);
+    }
+  }
   
   if (!isInitialized) {
      return (
@@ -178,15 +212,15 @@ export default function DraftingPage() {
                   <FormMessage />
                 </FormItem>
               )} />
-              <Button type="submit" disabled={isLoading} className="font-headline">
-                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : <><PenSquare className="mr-2" /> Generate Draft</>}
+              <Button type="submit" disabled={isDraftLoading} className="font-headline">
+                {isDraftLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : <><PenSquare className="mr-2" /> Generate Draft</>}
               </Button>
             </form>
           </Form>
         </CardContent>
       </Card>
       
-      {isLoading && 
+      {isDraftLoading && 
          <Card>
           <CardHeader>
             <Skeleton className="h-7 w-48" />
@@ -202,7 +236,7 @@ export default function DraftingPage() {
         </Card>
       }
 
-      {draft && !isLoading && (
+      {draft && !isDraftLoading && (
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Generated Draft</CardTitle>
@@ -211,14 +245,46 @@ export default function DraftingPage() {
           <CardContent>
             <Textarea className="min-h-[300px] text-base" value={draft} onChange={(e) => setDraft(e.target.value)} />
           </CardContent>
-          <CardFooter className="gap-2">
+          <CardFooter className="flex-wrap gap-2">
             <Button onClick={handleSave} className="font-headline"><Save className="mr-2"/> Save Draft</Button>
-            <Button onClick={handleDownload} variant="outline" className="font-headline"><Download className="mr-2"/> Download .txt</Button>
+            <Button onClick={handleDownloadText} variant="outline" className="font-headline"><Download className="mr-2"/> Download .txt</Button>
+            <Button onClick={handleGenerateImage} variant="outline" className="font-headline" disabled={isImageLoading}>
+                {isImageLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating Image...</> : <><ImageIcon className="mr-2"/> Generate Image</>}
+            </Button>
           </CardFooter>
+        </Card>
+      )}
+
+      {isImageLoading && (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Generated Image</CardTitle>
+                <CardDescription>Our AI is creating a visual for your content.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="aspect-video w-full">
+                    <Skeleton className="w-full h-full" />
+                </div>
+            </CardContent>
+        </Card>
+      )}
+
+      {imageUrl && !isImageLoading && (
+         <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Generated Image</CardTitle>
+                <CardDescription>Here is the visual asset generated for your content.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="aspect-video w-full relative overflow-hidden rounded-lg border">
+                    <Image src={imageUrl} alt="Generated visual for the draft" fill className="object-cover" />
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button onClick={handleDownloadImage} variant="outline" className="font-headline"><Download className="mr-2"/> Download Image</Button>
+            </CardFooter>
         </Card>
       )}
     </div>
   );
 }
-
-    
