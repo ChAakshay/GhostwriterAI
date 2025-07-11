@@ -16,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Shuffle, Terminal, Save } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
@@ -25,8 +25,9 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function RepurposePage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function RepurposePage() {
+  const params = useParams();
+  const id = params.id as string;
   const { drafts, voiceProfile, isInitialized, addDraft } = useGhostwriterState();
   const router = useRouter();
   const { toast } = useToast();
