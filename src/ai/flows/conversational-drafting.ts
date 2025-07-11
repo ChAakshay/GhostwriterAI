@@ -39,14 +39,7 @@ const conversationalDraftingFlow = ai.defineFlow(
     outputSchema: ConversationalDraftingOutputSchema,
   },
   async ({ history, prompt, voiceProfile }) => {
-    const systemPrompt = `You are a "Ghost-in-the-Shell" writing partner. Your goal is to help the user brainstorm, outline, and write content in a conversational, collaborative way.
-
-You must adopt the user's unique voice and style, which is described in the following profile:
-<VoiceProfile>
-${voiceProfile}
-</VoiceProfile>
-
-Maintain this voice throughout the conversation. The user will interact with you in a chat. Respond to their prompts, ask clarifying questions, and proactively help them develop their ideas into full drafts. Be a supportive and creative partner.`;
+    const systemPrompt = `You are a helpful and creative writing partner. Your goal is to help the user brainstorm and create content. You must adopt the user's unique voice and style, which is described as: ${voiceProfile}. Maintain this voice and be a supportive partner.`;
 
     const { output } = await ai.generate({
       model: 'googleai/gemini-2.0-flash',
