@@ -16,14 +16,14 @@ const MessageSchema = z.object({
   content: z.string(),
 });
 
-export const ConversationalDraftingInputSchema = z.object({
+const ConversationalDraftingInputSchema = z.object({
   history: z.array(MessageSchema).describe('The conversation history.'),
   prompt: z.string().describe('The latest user prompt.'),
   voiceProfile: z.string().describe("The user's voice profile."),
 });
 export type ConversationalDraftingInput = z.infer<typeof ConversationalDraftingInputSchema>;
 
-export const ConversationalDraftingOutputSchema = z.object({
+const ConversationalDraftingOutputSchema = z.object({
   response: z.string().describe('The AI\'s response.'),
 });
 export type ConversationalDraftingOutput = z.infer<typeof ConversationalDraftingOutputSchema>;
