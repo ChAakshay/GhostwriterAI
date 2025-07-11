@@ -34,7 +34,7 @@ export default function RepurposePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [repurposedContent, setRepurposedContent] = useState<string | null>(null);
   
-  const originalDraft = drafts.find(d => d.id === id);
+  const originalDraft = isInitialized ? drafts.find(d => d.id === id) : undefined;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
