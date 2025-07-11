@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, isSameDay } from 'date-fns';
-import { AlertCircle, Clock, Lightbulb, Loader2 } from 'lucide-react';
+import { Clock, Lightbulb, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -208,7 +207,7 @@ export default function CalendarPage() {
                     <Button onClick={handleScheduleClick} disabled={!selectedDate || !selectedDraftId} className="w-full font-headline">
                         <Clock className="mr-2" />
                         Schedule on {selectedDate ? format(selectedDate, 'MMM d') : ''}
-                    </...Button>
+                    </Button>
                 </div>
             )}
 
