@@ -8,13 +8,6 @@ function getTitleFromPathname(pathname: string): string {
   const segments = pathname.split('/');
   const lastSegment = segments.pop() || 'dashboard';
 
-  if (lastSegment === '[id]') {
-    const parentSegment = segments.pop();
-    if (parentSegment === 'repurpose') {
-      return 'Content Repurposing';
-    }
-  }
-
   switch (lastSegment) {
     case 'dashboard':
       return 'Dashboard';
@@ -26,8 +19,6 @@ function getTitleFromPathname(pathname: string): string {
       return 'Content Ideas';
     case 'drafts':
       return 'My Drafts';
-    case 'repurpose':
-      return 'Content Repurposing';
     default:
       return 'Dashboard';
   }
