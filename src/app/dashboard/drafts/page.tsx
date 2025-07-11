@@ -5,7 +5,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { contentRepurposing } from '@/ai/flows/content-repurposing';
-import { personaFeedback, PersonaFeedbackOutput } from '@/ai/flows/persona-feedback';
+import { personaFeedback, type PersonaFeedbackOutput } from '@/ai/flows/persona-feedback';
 import { useGhostwriterState, type Draft, type Persona } from '@/hooks/use-ghostwriter-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';

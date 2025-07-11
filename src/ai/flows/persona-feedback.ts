@@ -10,13 +10,13 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const PersonaFeedbackInputSchema = z.object({
+const PersonaFeedbackInputSchema = z.object({
   draftContent: z.string().describe('The content of the draft to be reviewed.'),
   personaDescription: z.string().describe('A detailed description of the target audience persona.'),
 });
 export type PersonaFeedbackInput = z.infer<typeof PersonaFeedbackInputSchema>;
 
-export const PersonaFeedbackOutputSchema = z.object({
+const PersonaFeedbackOutputSchema = z.object({
   overallImpression: z.string().describe("The persona's first impression and overall feeling about the content."),
   clarityFeedback: z.string().describe("Feedback on the clarity and ease of understanding of the content."),
   engagementFeedback: z.string().describe("Feedback on how engaging and interesting the content is for the persona."),
