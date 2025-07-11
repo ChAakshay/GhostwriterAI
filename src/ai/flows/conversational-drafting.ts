@@ -58,6 +58,10 @@ Maintain this voice throughout the conversation. The user will interact with you
       prompt: prompt,
     });
     
+    if (!output) {
+      throw new Error("The AI model returned an empty response.");
+    }
+    
     return {
         response: output.text,
     };
