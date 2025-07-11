@@ -9,6 +9,8 @@ function getTitleFromPathname(pathname: string): string {
   switch (segment) {
     case 'dashboard':
       return 'Dashboard';
+    case 'chat':
+      return 'Conversational AI';
     case 'drafting':
       return 'Content Drafting';
     case 'voice':

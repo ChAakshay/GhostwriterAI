@@ -8,10 +8,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, PenSquare, AudioLines, Lightbulb, FileText } from 'lucide-react';
+import { LayoutDashboard, PenSquare, AudioLines, Lightbulb, FileText, MessageSquare } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard/chat', label: 'Chat', icon: MessageSquare },
   { href: '/dashboard/drafting', label: 'Drafting', icon: PenSquare },
   { href: '/dashboard/voice', label: 'Voice Profile', icon: AudioLines },
   { href: '/dashboard/ideas', label: 'Content Ideas', icon: Lightbulb },
