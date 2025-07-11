@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useTransition } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,13 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Send, Terminal, User, Bot } from 'lucide-react';
+import { Loader2, Send, Terminal, User, Bot, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { conversationalDrafting } from '@/ai/flows/conversational-drafting';
+import { conversationalDrafting, type Message } from '@/ai/flows/conversational-drafting';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 
 const formSchema = z.object({
@@ -26,16 +26,16 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface Message {
-    role: 'user' | 'model';
-    content: string;
+interface ChatMessage extends Message {
+  id: string;
+  error?: boolean;
 }
 
 export default function ChatPage() {
   const { voiceProfile, isInitialized } = useGhostwriterState();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [isPending, startTransition] = useTransition();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<FormValues>({
@@ -64,29 +64,41 @@ export default function ChatPage() {
       return;
     }
 
-    setIsLoading(true);
-    const newMessages: Message[] = [...messages, { role: 'user', content: data.prompt }];
-    setMessages(newMessages);
+    const userMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: data.prompt
+    };
+    const loadingMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'model',
+        content: '...'
+    };
+    
+    setMessages(prev => [...prev, userMessage, loadingMessage]);
     form.reset();
 
-    try {
+    startTransition(async () => {
       const result = await conversationalDrafting({
-        history: messages,
+        history: messages, // Send previous messages for context
         prompt: data.prompt,
         voiceProfile: voiceProfile,
       });
-      setMessages([...newMessages, { role: 'model', content: result.response }]);
-    } catch (error) {
-      console.error("Error in conversation:", error);
-      toast({
-        variant: "destructive",
-        title: "Conversation Error",
-        description: "There was an error with the AI. Please try again.",
-      });
-       setMessages(messages); // Revert messages on error
-    } finally {
-      setIsLoading(false);
-    }
+
+      if (result.error) {
+        setMessages(prev => prev.map(msg => 
+            msg.id === loadingMessage.id 
+            ? { ...msg, content: result.error, error: true }
+            : msg
+        ));
+      } else {
+        setMessages(prev => prev.map(msg => 
+            msg.id === loadingMessage.id 
+            ? { ...msg, content: result.response as string, error: false }
+            : msg
+        ));
+      }
+    });
   };
   
   if (!isInitialized) {
@@ -155,26 +167,34 @@ export default function ChatPage() {
                             <p>Start the conversation below!</p>
                         </div>
                     )}
-                    {messages.map((message, index) => (
-                        <div key={index} className={cn("flex items-start gap-4", message.role === 'user' && "flex-row-reverse")}>
-                             <Avatar>
-                                <AvatarFallback>{message.role === 'user' ? <User /> : <Bot/>}</AvatarFallback>
-                            </Avatar>
-                            <div className={cn("p-4 rounded-lg max-w-xl", message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                                <p className="whitespace-pre-wrap">{message.content}</p>
-                            </div>
-                        </div>
-                    ))}
-                    {isLoading && (
-                        <div className="flex items-start gap-4">
-                            <Avatar>
-                                <AvatarFallback><Bot/></AvatarFallback>
-                            </Avatar>
-                            <div className="p-4 rounded-lg bg-muted">
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                            </div>
-                        </div>
-                    )}
+                    {messages.map((message) => {
+                        const isLoading = isPending && message.content === '...';
+                        return (
+                          <div key={message.id} className={cn("flex items-start gap-4", message.role === 'user' && "flex-row-reverse")}>
+                               <Avatar>
+                                  <AvatarFallback>{message.role === 'user' ? <User /> : <Bot/>}</AvatarFallback>
+                              </Avatar>
+                              <div className={cn("p-4 rounded-lg max-w-xl", 
+                                message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted',
+                                message.error && 'bg-destructive/10 text-destructive border border-destructive/20'
+                              )}>
+                                  {isLoading ? (
+                                    <div className="flex items-center gap-2">
+                                      <Loader2 className="h-5 w-5 animate-spin" />
+                                      <span>Thinking...</span>
+                                    </div>
+                                  ) : message.error ? (
+                                    <div className="flex items-start gap-2">
+                                      <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                                      <p className="whitespace-pre-wrap">{message.content}</p>
+                                    </div>
+                                  ) : (
+                                    <p className="whitespace-pre-wrap">{message.content}</p>
+                                  )}
+                              </div>
+                          </div>
+                        )
+                    })}
                  </div>
              </ScrollArea>
         </CardContent>
@@ -184,13 +204,13 @@ export default function ChatPage() {
               <FormField control={form.control} name="prompt" render={({ field }) => (
                 <FormItem className="flex-grow">
                   <FormControl>
-                    <Input placeholder="Say something like 'Let's write a blog post about...'" {...field} autoComplete="off" />
+                    <Input placeholder="Say something like 'Let's write a blog post about...'" {...field} autoComplete="off" disabled={isPending} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              <Button type="submit" disabled={isPending}>
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 <span className="sr-only">Send</span>
               </Button>
             </form>
