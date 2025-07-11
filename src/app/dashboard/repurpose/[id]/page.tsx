@@ -17,6 +17,7 @@ import { Loader2, Shuffle, Terminal, Save } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
+import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
   targetFormat: z.string({ required_error: "Please select a target format." }),

@@ -136,7 +136,7 @@ export default function DraftsPage() {
             <p>Go to the Drafting page to generate and save your first one!</p>
           </div>
         )}
-      </Content>
+      </CardContent>
     </Card>
   );
 }
