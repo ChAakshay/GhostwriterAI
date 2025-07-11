@@ -178,10 +178,10 @@ export default function DashboardPage() {
                 <div key={draft.id} className="flex items-center justify-between p-3 rounded-lg bg-card-foreground/5">
                   <div className="space-y-1">
                      <p className="font-medium">{draft.topic}</p>
-                     <p className="text-sm text-muted-foreground">
+                     <div className="text-sm text-muted-foreground">
                         <Badge variant="secondary" className="mr-2">{draft.format}</Badge>
                         Created on {format(new Date(draft.createdAt), 'MMM d, yyyy')}
-                    </p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -208,5 +208,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
