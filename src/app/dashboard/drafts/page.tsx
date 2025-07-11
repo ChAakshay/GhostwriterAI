@@ -7,12 +7,13 @@ import { z } from 'zod';
 import { contentRepurposing } from '@/ai/flows/content-repurposing';
 import { personaFeedback, type PersonaFeedbackOutput } from '@/ai/flows/persona-feedback';
 import { contentAnalysis, type ContentAnalysisOutput } from '@/ai/flows/content-analysis';
+import { textToSpeech, type TextToSpeechOutput } from '@/ai/flows/text-to-speech';
 import { useGhostwriterState, type Draft, type Persona } from '@/hooks/use-ghostwriter-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Send, Loader2, Save, MessageSquareQuote, WandSparkles, BarChartHorizontal } from 'lucide-react';
+import { Trash2, Send, Loader2, Save, MessageSquareQuote, WandSparkles, BarChartHorizontal, Download, Mic } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -58,10 +59,12 @@ export default function DraftsPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [isAnalysisDialogOpen, setIsAnalysisDialogOpen] = useState(false);
+  const [isAudioDialogOpen, setIsAudioDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [repurposedContent, setRepurposedContent] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<PersonaFeedbackOutput | null>(null);
   const [analysis, setAnalysis] = useState<ContentAnalysisOutput | null>(null);
+  const [audio, setAudio] = useState<TextToSpeechOutput | null>(null);
   const { toast } = useToast();
 
   const repurposeForm = useForm<RepurposeFormValues>({
@@ -107,6 +110,13 @@ export default function DraftsPage() {
       setIsLoading(false);
     }
   }
+
+  const handleAudioClick = (draft: Draft, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedDraft(draft);
+    setAudio(null);
+    setIsAudioDialogOpen(true);
+  };
 
   const handleViewClick = (draft: Draft) => {
     setSelectedDraft(draft);
@@ -157,6 +167,21 @@ export default function DraftsPage() {
     }
   }
 
+  const onGenerateAudio = async () => {
+    if (!selectedDraft) return;
+    setIsLoading(true);
+    setAudio(null);
+    try {
+      const result = await textToSpeech({ text: selectedDraft.content });
+      setAudio(result);
+    } catch (error) {
+      console.error("Error generating audio:", error);
+      toast({ variant: "destructive", title: "Audio Generation Failed", description: "There was an error generating the audio. Please try again." });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   const handleSaveRepurposed = () => {
     if (repurposedContent && selectedDraft) {
       addDraft({
@@ -166,6 +191,17 @@ export default function DraftsPage() {
       });
       toast({ title: "Draft Saved!", description: "You can view your new draft in the list." });
       setIsRepurposeDialogOpen(false);
+    }
+  };
+
+  const handleDownloadAudio = () => {
+    if (audio?.audioDataUri && selectedDraft) {
+      const link = document.createElement('a');
+      link.href = audio.audioDataUri;
+      link.download = `${selectedDraft.topic.replace(/\s+/g, '_')}_audio.wav`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -240,6 +276,10 @@ export default function DraftsPage() {
                       <TableCell>{format(new Date(draft.createdAt), 'PPp')}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="outline" size="sm" onClick={(e) => handleAudioClick(draft, e)}>
+                              <Mic className="h-3 w-3 mr-2" />
+                              Generate Audio
+                           </Button>
                            <Button variant="outline" size="sm" onClick={(e) => handleAnalysisClick(draft, e)}>
                             <BarChartHorizontal className="h-3 w-3 mr-2" />
                             Analyze
@@ -554,6 +594,58 @@ export default function DraftsPage() {
                     )}
                 </div>
             </div>
+          </DialogContent>
+        )}
+      </Dialog>
+      
+      {/* Audio Generation Dialog */}
+      <Dialog open={isAudioDialogOpen} onOpenChange={setIsAudioDialogOpen}>
+        {selectedDraft && (
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="font-headline">Generate Audio</DialogTitle>
+              <DialogDescription>
+                Convert your draft into a natural-sounding audio file.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                  <Label>Draft Content</Label>
+                  <ScrollArea className="border rounded-md p-3 bg-muted/50 h-48">
+                      <p className="text-sm whitespace-pre-wrap">{selectedDraft.content}</p>
+                  </ScrollArea>
+              </div>
+
+              {isLoading && (
+                  <div className="flex items-center justify-center p-8 space-x-2">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <p className="text-muted-foreground">Generating audio, please wait...</p>
+                  </div>
+              )}
+
+              {audio?.audioDataUri && !isLoading && (
+                  <div className="space-y-4">
+                    <audio controls className="w-full">
+                      <source src={audio.audioDataUri} type="audio/wav" />
+                      Your browser does not support the audio element.
+                    </audio>
+                     <Button onClick={handleDownloadAudio} variant="outline" className="w-full font-headline">
+                        <Download className="mr-2" /> Download .wav file
+                    </Button>
+                  </div>
+              )}
+            </div>
+            {!audio && (
+                <DialogFooter>
+                    <Button onClick={onGenerateAudio} disabled={isLoading} className="font-headline">
+                        {isLoading ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</>
+                        ) : (
+                            <><Mic className="mr-2 h-4 w-4" /> Generate Audio</>
+                        )}
+                    </Button>
+                </DialogFooter>
+            )}
           </DialogContent>
         )}
       </Dialog>
