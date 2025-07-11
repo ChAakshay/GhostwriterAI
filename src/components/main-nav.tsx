@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, PenSquare, AudioLines, Lightbulb, FileText } from 'lucide-react';
+import { LayoutDashboard, PenSquare, AudioLines, Lightbulb, FileText, Shuffle } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,7 +28,7 @@ export function MainNav() {
           <SidebarMenuItem key={item.href}>
             <SidebarMenuButton
               asChild
-              isActive={pathname === item.href}
+              isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}
               className="font-headline"
             >
               <Link href={item.href}>

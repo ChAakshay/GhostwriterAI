@@ -5,8 +5,17 @@ import { UserNav } from '@/components/user-nav';
 import { usePathname } from 'next/navigation';
 
 function getTitleFromPathname(pathname: string): string {
-  const segment = pathname.split('/').pop() || 'dashboard';
-  switch (segment) {
+  const segments = pathname.split('/');
+  const lastSegment = segments.pop() || 'dashboard';
+
+  if (lastSegment === '[id]') {
+    const parentSegment = segments.pop();
+    if (parentSegment === 'repurpose') {
+      return 'Content Repurposing';
+    }
+  }
+
+  switch (lastSegment) {
     case 'dashboard':
       return 'Dashboard';
     case 'drafting':
@@ -17,6 +26,8 @@ function getTitleFromPathname(pathname: string): string {
       return 'Content Ideas';
     case 'drafts':
       return 'My Drafts';
+    case 'repurpose':
+      return 'Content Repurposing';
     default:
       return 'Dashboard';
   }

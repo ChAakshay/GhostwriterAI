@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useGhostwriterState, type Draft } from '@/hooks/use-ghostwriter-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Shuffle } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -49,7 +50,10 @@ export default function DraftsPage() {
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-36" /></TableCell>
                     <TableCell className="text-right">
-                      <Skeleton className="h-8 w-8 ml-auto" />
+                       <div className="flex justify-end gap-2">
+                        <Skeleton className="h-8 w-8" />
+                        <Skeleton className="h-8 w-8" />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -66,7 +70,7 @@ export default function DraftsPage() {
       <CardHeader>
         <CardTitle className="font-headline">My Drafts</CardTitle>
         <CardDescription>
-          Here are all the content drafts you've saved.
+          Here are all the content drafts you've saved. You can repurpose them for different platforms.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -90,28 +94,36 @@ export default function DraftsPage() {
                     </TableCell>
                     <TableCell>{format(new Date(draft.createdAt), 'PPp')}</TableCell>
                     <TableCell className="text-right">
-                       <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete draft</span>
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="font-headline">Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete this draft.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteDraft(draft.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                       <div className="flex justify-end gap-2">
+                         <Button asChild variant="outline" size="icon">
+                            <Link href={`/dashboard/repurpose/${draft.id}`}>
+                                <Shuffle className="h-4 w-4" />
+                                <span className="sr-only">Repurpose draft</span>
+                            </Link>
+                         </Button>
+                         <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete draft</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="font-headline">Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this draft.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteDraft(draft.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -124,9 +136,7 @@ export default function DraftsPage() {
             <p>Go to the Drafting page to generate and save your first one!</p>
           </div>
         )}
-      </CardContent>
+      </Content>
     </Card>
   );
 }
-
-    
