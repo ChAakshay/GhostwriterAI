@@ -32,6 +32,10 @@ export default function DraftingPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      topic: '',
+      format: '',
+    },
   });
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
@@ -136,7 +140,7 @@ export default function DraftingPage() {
               <FormField control={form.control} name="format" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Content Format</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a format..." />
