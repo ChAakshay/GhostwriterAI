@@ -26,13 +26,14 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export default function RepurposePage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { drafts, voiceProfile, isInitialized, addDraft } = useGhostwriterState();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [repurposedContent, setRepurposedContent] = useState<string | null>(null);
   
-  const originalDraft = drafts.find(d => d.id === params.id);
+  const originalDraft = drafts.find(d => d.id === id);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
