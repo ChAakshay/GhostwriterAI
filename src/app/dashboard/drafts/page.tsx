@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Send, Loader2, Save, MessageSquareQuote, WandSparkles, BarChartHorizontal, Download, Mic } from 'lucide-react';
+import { Trash2, Send, Loader2, Save, MessageSquareQuote, WandSparkles, BarChartHorizontal, Download, Mic, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -43,6 +43,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const repurposeFormSchema = z.object({
   targetFormat: z.string({ required_error: "Please select a target format." }),
@@ -53,6 +54,32 @@ const feedbackFormSchema = z.object({
   personaId: z.string({ required_error: "Please select a persona." }),
 });
 type FeedbackFormValues = z.infer<typeof feedbackFormSchema>;
+
+const expertFeedbackFormSchema = z.object({
+  expertId: z.string({ required_error: "Please select an expert." }),
+});
+type ExpertFeedbackFormValues = z.infer<typeof expertFeedbackFormSchema>;
+
+const expertPersonas = [
+    {
+        id: 'skeptical-editor',
+        name: 'The Skeptical Editor',
+        description: 'You are a meticulous and skeptical editor with 20 years of experience at a top-tier publication. Your primary goal is to poke holes in arguments, check for logical fallacies, and ensure every claim is backed by evidence. You value clarity, precision, and conciseness above all. You are ruthless in cutting fluff and demand strong, coherent reasoning. Provide feedback that is critical, direct, and focused on strengthening the core argument of the draft.',
+        avatar: '🧐'
+    },
+    {
+        id: 'data-driven-marketer',
+        name: 'The Data-Driven Marketer',
+        description: 'You are a performance-oriented digital marketer who lives and breathes analytics. Your focus is on reader engagement and conversion. You analyze content for its ability to hook the reader in the first three seconds, maintain their attention, and drive them to a specific action (like, comment, share, subscribe). Your feedback should be actionable and geared towards maximizing the content\'s reach and impact. Look for strong hooks, clear calls-to-action (CTAs), and potential for virality.',
+        avatar: '📊'
+    },
+    {
+        id: 'creative-storyteller',
+        name: 'The Creative Storyteller',
+        description: 'You are a master storyteller, a novelist, and a screenwriter. You see the world in narratives and arcs. Your focus is on the emotional journey of the reader. You look for compelling characters (even if it\'s just the author\'s voice), narrative tension, vivid language, and a satisfying resolution. Your feedback should help transform a dry piece of content into a memorable and emotionally resonant story. Suggest ways to improve flow, add personality, and create a stronger connection with the reader.',
+        avatar: '🎨'
+    }
+]
 
 export default function DraftsPage() {
   const { drafts, deleteDraft, isInitialized, addDraft, voiceProfile, personas } = useGhostwriterState();
@@ -65,6 +92,7 @@ export default function DraftsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [repurposedContent, setRepurposedContent] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<PersonaFeedbackOutput | null>(null);
+  const [currentFeedbackPersonaName, setCurrentFeedbackPersonaName] = useState<string>('');
   const [analysis, setAnalysis] = useState<ContentAnalysisOutput | null>(null);
   const [audio, setAudio] = useState<TextToSpeechOutput | null>(null);
   const { toast } = useToast();
@@ -77,6 +105,10 @@ export default function DraftsPage() {
   const feedbackForm = useForm<FeedbackFormValues>({
     resolver: zodResolver(feedbackFormSchema),
     defaultValues: { personaId: '' },
+  });
+
+  const expertFeedbackForm = useForm<ExpertFeedbackFormValues>({
+    resolver: zodResolver(expertFeedbackFormSchema),
   });
   
   const handleRepurposeClick = (draft: Draft, e: React.MouseEvent) => {
@@ -91,7 +123,9 @@ export default function DraftsPage() {
     e.stopPropagation();
     setSelectedDraft(draft);
     setFeedback(null);
+    setCurrentFeedbackPersonaName('');
     feedbackForm.reset();
+    expertFeedbackForm.reset();
     setIsFeedbackDialogOpen(true);
   }
   
@@ -147,17 +181,14 @@ export default function DraftsPage() {
     }
   };
 
-  const onFeedbackSubmit: SubmitHandler<FeedbackFormValues> = async (data) => {
-    const selectedPersona = personas.find(p => p.id === data.personaId);
-    if (!selectedPersona || !selectedDraft) {
-      toast({ variant: "destructive", title: "Missing Information", description: "A valid persona and draft must be selected." });
-      return;
-    }
+  const generateFeedback = async (personaDescription: string, personaName: string) => {
+    if (!selectedDraft) return;
     setIsLoading(true);
     setFeedback(null);
+    setCurrentFeedbackPersonaName(personaName);
     try {
       const result = await personaFeedback({
-        personaDescription: selectedPersona.description,
+        personaDescription: personaDescription,
         draftContent: selectedDraft.content,
       });
       setFeedback(result);
@@ -168,6 +199,21 @@ export default function DraftsPage() {
       setIsLoading(false);
     }
   }
+
+  const onAudienceFeedbackSubmit: SubmitHandler<FeedbackFormValues> = async (data) => {
+    const selectedPersona = personas.find(p => p.id === data.personaId);
+    if (selectedPersona) {
+      await generateFeedback(selectedPersona.description, selectedPersona.name);
+    }
+  }
+  
+  const onExpertFeedbackSubmit: SubmitHandler<ExpertFeedbackFormValues> = async (data) => {
+    const selectedExpert = expertPersonas.find(p => p.id === data.expertId);
+    if (selectedExpert) {
+        await generateFeedback(selectedExpert.description, selectedExpert.name);
+    }
+  }
+
 
   const onGenerateAudio = async () => {
     if (!selectedDraft) return;
@@ -280,7 +326,7 @@ export default function DraftsPage() {
                         <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                            <Button variant="outline" size="sm" onClick={(e) => handleAudioClick(draft, e)}>
                               <Mic className="h-3 w-3 mr-2" />
-                              Generate Audio
+                              Audio
                            </Button>
                            <Button variant="outline" size="sm" onClick={(e) => handleAnalysisClick(draft, e)}>
                             <BarChartHorizontal className="h-3 w-3 mr-2" />
@@ -288,7 +334,7 @@ export default function DraftsPage() {
                           </Button>
                           <Button variant="outline" size="sm" onClick={(e) => handleFeedbackClick(draft, e)}>
                             <MessageSquareQuote className="h-3 w-3 mr-2" />
-                            Get Feedback
+                            Feedback
                           </Button>
                           <Button variant="outline" size="sm" onClick={(e) => handleRepurposeClick(draft, e)}>
                             <Send className="h-3 w-3 mr-2" />
@@ -423,47 +469,83 @@ export default function DraftsPage() {
       </Dialog>
       
       {/* Feedback Dialog */}
-      <Dialog open={isFeedbackDialogOpen} onOpenChange={setIsFeedbackDialogOpen}>
+       <Dialog open={isFeedbackDialogOpen} onOpenChange={setIsFeedbackDialogOpen}>
         {selectedDraft && (
           <DialogContent className="sm:max-w-4xl">
              <DialogHeader>
-              <DialogTitle className="font-headline">Get Persona Feedback</DialogTitle>
+              <DialogTitle className="font-headline">Get Feedback</DialogTitle>
               <DialogDescription>
-                Analyze how your draft resonates with a specific target audience.
+                Analyze how your draft resonates with a specific audience or get an expert opinion.
               </DialogDescription>
             </DialogHeader>
             <div className="grid lg:grid-cols-2 gap-6 py-4">
-                {/* Left: Form & Draft */}
+                {/* Left: Forms & Draft */}
                 <div className="space-y-4">
-                     <Form {...feedbackForm}>
-                        <form onSubmit={feedbackForm.handleSubmit(onFeedbackSubmit)} className="space-y-4">
-                             <FormField control={feedbackForm.control} name="personaId" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Select Audience Persona</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Choose a persona to get feedback from..." />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {personas.length > 0 ? personas.map(p => (
-                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                            )) : <SelectItem value="none" disabled>No personas defined.</SelectItem>}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                             )} />
-                             <Button type="submit" disabled={isLoading || !feedbackForm.formState.isValid || personas.length === 0} className="font-headline">
-                                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : <><WandSparkles className="mr-2 h-4 w-4" /> Get Feedback</>}
-                            </Button>
-                        </form>
-                     </Form>
+                    <Tabs defaultValue="audience">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="audience">Audience Persona</TabsTrigger>
+                            <TabsTrigger value="expert">Expert Collaborator</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="audience" className="pt-4">
+                             <Form {...feedbackForm}>
+                                <form onSubmit={feedbackForm.handleSubmit(onAudienceFeedbackSubmit)} className="space-y-4">
+                                    <FormField control={feedbackForm.control} name="personaId" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Select Audience Persona</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Choose a persona..." />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {personas.length > 0 ? personas.map(p => (
+                                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                    )) : <SelectItem value="none" disabled>No personas defined.</SelectItem>}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <Button type="submit" disabled={isLoading || !feedbackForm.formState.isValid || personas.length === 0} className="font-headline">
+                                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : <><WandSparkles className="mr-2 h-4 w-4" /> Get Audience Feedback</>}
+                                    </Button>
+                                </form>
+                             </Form>
+                        </TabsContent>
+                        <TabsContent value="expert" className="pt-4">
+                            <Form {...expertFeedbackForm}>
+                                <form onSubmit={expertFeedbackForm.handleSubmit(onExpertFeedbackSubmit)} className="space-y-4">
+                                    <FormField control={expertFeedbackForm.control} name="expertId" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Select Expert Collaborator</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Choose an expert..." />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {expertPersonas.map(p => (
+                                                        <SelectItem key={p.id} value={p.id}>{p.avatar} {p.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <Button type="submit" disabled={isLoading || !expertFeedbackForm.formState.isValid} className="font-headline">
+                                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : <><UserCheck className="mr-2 h-4 w-4" /> Get Expert Feedback</>}
+                                    </Button>
+                                </form>
+                             </Form>
+                        </TabsContent>
+                    </Tabs>
+                     
                      <Separator />
                      <div className="space-y-2">
                          <Label>Original Draft</Label>
-                         <ScrollArea className="border rounded-md p-3 bg-muted/50 h-[40vh]">
+                         <ScrollArea className="border rounded-md p-3 bg-muted/50 h-[30vh]">
                             <p className="text-sm whitespace-pre-wrap">{selectedDraft.content}</p>
                         </ScrollArea>
                      </div>
@@ -474,38 +556,41 @@ export default function DraftsPage() {
                         <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-md z-10">
                             <div className="text-center">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                                <p className="font-semibold">Analyzing draft...</p>
-                                <p className="text-sm text-muted-foreground">The persona is reading your content.</p>
+                                <p className="font-semibold">Analyzing draft as {currentFeedbackPersonaName}...</p>
+                                <p className="text-sm text-muted-foreground">This may take a moment.</p>
                             </div>
                         </div>
                     )}
                     {feedback ? (
                        <ScrollArea className="h-[65vh] pr-4">
+                           <div className="mb-4">
+                             <h3 className="font-headline text-xl">Feedback from {currentFeedbackPersonaName}</h3>
+                           </div>
                             <div className="space-y-4">
                                 <div>
-                                    <h4 className="font-headline text-lg">Overall Impression</h4>
+                                    <h4 className="font-semibold text-md">Overall Impression</h4>
                                     <p className="text-sm text-muted-foreground">{feedback.overallImpression}</p>
                                 </div>
                                 <Separator />
                                 <div>
-                                    <h4 className="font-headline text-lg">Clarity Feedback</h4>
+                                    <h4 className="font-semibold text-md">Clarity Feedback</h4>
                                     <p className="text-sm text-muted-foreground">{feedback.clarityFeedback}</p>
                                 </div>
                                 <Separator />
                                 <div>
-                                    <h4 className="font-headline text-lg">Engagement Feedback</h4>
+                                    <h4 className="font-semibold text-md">Engagement Feedback</h4>
                                     <p className="text-sm text-muted-foreground">{feedback.engagementFeedback}</p>
                                 </div>
                                 <Separator />
                                 <div>
-                                    <h4 className="font-headline text-lg">Potential Questions</h4>
+                                    <h4 className="font-semibold text-md">Potential Questions</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                                         {feedback.questions.map((q, i) => <li key={i}>{q}</li>)}
                                     </ul>
                                 </div>
                                  <Separator />
                                 <div>
-                                    <h4 className="font-headline text-lg">Improvement Suggestions</h4>
+                                    <h4 className="font-semibold text-md">Improvement Suggestions</h4>
                                      <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                                         {feedback.suggestions.map((s, i) => <li key={i}>{s}</li>)}
                                     </ul>
